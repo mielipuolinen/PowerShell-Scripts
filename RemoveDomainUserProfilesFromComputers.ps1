@@ -11,6 +11,14 @@ For example it can be used to clean public workstations.
 It won't remove loaded (logged in) users or non-domain users as long as DomainSID is correctly set.
 No visible errors or prompts.
 
+.PARAMETER InactivityDays
+Default 14 days. Can be set to 0 for skipping inactivity check.
+
+.PARAMETER DomainSID
+DomainSID is a forest/domain wide identifier SID for domain. Many ways to find DomainSID. For example:
+PS> Get-CimInstance -ClassName Win32_UserProfile | Where {$_.LocalPath -eq "C:\Users\domain.user"} | % {$_.SID.substring(0,($_.SID.length)-5);}
+
+.NOTES
 Powershell version 3.0 should be enough, however only tested on PS 5.0.
 Local administrator privileges required.
 
@@ -19,15 +27,11 @@ Powershell.exe -NonInteractive -ExecutionPolicy Bypass -NoProfile -Path C:\Path\
 
 Monitoring is up to you.
 
-Note: if you're using SYSTEM account for executing script you can't access network shares.
-Note: LastUseTime might be inaccurate, in some environments it updates without logging in. I've included NTUSER.DAT file timestamp check too but it's commented out for now.
+Note: if you're using SYSTEM account for executing scripts you can't access network shares.
+Note: LastUseTime might be inaccurate, in some environments it seems to update without user logging in. I've included NTUSER.DAT file timestamp check too but it's commented out for now.
 
-.PARAMETER InactivityDays
-Default 14 days. Can be set to 0 for skipping inactivity check.
-
-.PARAMETER DomainSID
-DomainSID is a forest/domain wide identifier SID for domain. Many ways to find DomainSID. For example:
-PS> Get-CimInstance -ClassName Win32_UserProfile | Where {$_.LocalPath -eq "C:\Users\domain.user"} | % {$_.SID.substring(0,($_.SID.length)-5);}
+Author: Niko Mielikäinen
+Git: https://github.com/mielipuolinen/PowerShell-Scripts
 #>
 
 Param(
