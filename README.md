@@ -5,3 +5,5 @@ Maybe some of these are originally yours and I've maybe just refactored or repur
 
 You're welcome to use these as you wish and you're also free to contribute.
 Oh.. about that use, you probably should keep credits if those are not mine.
+
+Something about my way of scripting. I rather keep it simple (KISS anyone?) than create a mega wrapper for a script. I expect you to be able to read my scripts and suit it for yourselves. I'll try to add some descriptions in files.
