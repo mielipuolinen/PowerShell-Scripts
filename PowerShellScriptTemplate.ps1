@@ -52,6 +52,11 @@ https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/abo
 
 .LINK
 https://docs.microsoft.com/en-us/powershell/scripting/overview
+
+.NOTES
+Additional notes.
+Author: Niko Mielikäinen
+Git: https://github.com/mielipuolinen/Powershell-Scripts
 #>
 
 [CmdletBinding()]
