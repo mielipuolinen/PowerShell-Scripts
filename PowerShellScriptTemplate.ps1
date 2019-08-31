@@ -9,6 +9,7 @@ Prints two strings, by default "Hello World!"
 .DESCRIPTION
 A more detailed description of script.
 This script combines two strings and returns it. Pipelining (input and output) and parameters are supported, see examples.
+CmdletBinding() enables -Verbose and -Debug parameters.
 
 .PARAMETER String1
 First string.
@@ -61,7 +62,12 @@ Param(
     [String]$String2 = "World!"
 )
 
+Set-StrictMode -Version Latest
+
 Function MyFunction([String]$String1 = "", [String]$String2 = ""){
+    Write-Verbose "String1: $($String1), String2: $($String2)"
+    Write-Debug "String1: $($String1), String2: $($String2)"
+
     Return "$($String1) $($String2)"
 }
 
