@@ -1,5 +1,5 @@
 ﻿#Requires -RunAsAdministrator 
-#Requires -Version 6.0
+#Requires -Version 5.0
 
 <#
 .SYNOPSIS
@@ -69,10 +69,10 @@ Param(
 Set-StrictMode -Version Latest
 
 Function MyFunction([String]$String1 = "", [String]$String2 = ""){
-    Write-Verbose "String1: $($String1), String2: $($String2)"
-    Write-Debug "String1: $($String1), String2: $($String2)"
+    Write-Verbose "String1: ${String1}, String2: ${String2}"
+    Write-Debug "String1: ${String1}, String2: ${String2}"
 
-    Return "$($String1) $($String2)"
+    Return "${String1} ${String2}"
 }
 
 Return "$(MyFunction -String1 $String1 -String2 $String2)"
