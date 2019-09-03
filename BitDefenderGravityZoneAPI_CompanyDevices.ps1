@@ -100,7 +100,9 @@ $JSON = @'
     "id": "1",
     "jsonrpc": "2.0"
 }
-'@ | ForEach-Object {$_.replace("`"nameFilter`": `"`"","`"nameFilter`": `"*${CompanyName}`"")} 
+'@
+
+$JSON | ForEach-Object {$_.replace("`"nameFilter`": `"`"","`"nameFilter`": `"*${CompanyName}`"")} 
 
 $response = Invoke-RestMethod -Uri $CompaniesAPI -Method POST -ContentType "application/json" -Headers $headers -Body $JSON
 Start-Sleep 0.2
@@ -136,7 +138,9 @@ $JSON = @'
     "id": "1",
     "jsonrpc": "2.0"
 }
-'@ | % {$_.replace("`"parentId`": `"`"","`"parentId`": `""+$parentId+"`"")}
+'@ 
+
+$JSON | ForEach-Object {$_.replace("`"parentId`": `"`"","`"parentId`": `""+$parentId+"`"")}
 
 $response = Invoke-RestMethod -Uri $NetworkAPI -Method POST -ContentType "application/json" -Headers $headers -Body $JSON
 Start-Sleep 0.2
@@ -174,7 +178,9 @@ $JSON = @'
 "id": "1",
 "jsonrpc": "2.0"
 }
-'@ | ForEach-Object {$_.replace("`"parentId`": `"`"","`"parentId`": `""+$parentId+"`"")} | % {$_.replace("`"page`": `"`"","`"page`": "+$i)}
+'@
+
+$JSON | ForEach-Object {$_.replace("`"parentId`": `"`"","`"parentId`": `""+$parentId+"`"")} | % {$_.replace("`"page`": `"`"","`"page`": "+$i)}
 
     $response = Invoke-RestMethod -Uri $NetworkAPI -Method POST -ContentType "application/json" -Headers $headers -Body $JSON
     Start-Sleep 0.2
@@ -215,7 +221,7 @@ Write-Host "WARNING - Found duplicate endpoint(s): ${duplicates}"
 $clients | Select-Object fqdn,isManaged,managedWithBest,operatingSystemVersion,ip | Export-Csv -Path $exportCSV -NoTypeInformation
 Write-Verbose "OK - Exported CSV to $($exportCSV)"
 Write-Verbose "DONE - $($clients.Count) clients for $($companyName)"
- $endpointCount = $clients.Count
+$endpointCount = $clients.Count
 
 if($ExportFormat -eq "Excel"){
     $clients | Select-Object @{Label="Hostname";Expression={($_.fqdn)}},@{Label="Managed";Expression={($_.isManaged)}},@{Label="Managed with BEST";Expression={($_.managedWithBest)}},@{Label="OS";Expression={($_.operatingSystemVersion)}},@{Label="IP";Expression={($_.ip)}} | Export-Excel -Path $exportXLSX -Title "BDGZ $($companyName) Endpoints" -WorkSheetname "BDGZ Endpoints" -AutoSize -TableName "Endpoints" -Show
