@@ -1,8 +1,9 @@
-﻿#Requires -RunAsAdministrator 
+#Requires -RunAsAdministrator 
 #Requires -Version 5.0
 
 <#
 .SYNOPSIS
+This is a PowerShell script file template for future projects.
 A brief description of script.
 Prints two strings, by default "Hello World!"
 
