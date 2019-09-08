@@ -18,19 +18,19 @@ First string.
 Second string.
 
 .EXAMPLE
-PS> PowerShellTemplate.ps1 -String1 "Hi" -String2 "GitHub!"
+PS> ScriptFileTemplate.ps1 -String1 "Hi" -String2 "GitHub!"
 Hi GitHub!
 
 .EXAMPLE
-PS> "What's up" | PowerShellTemplate.ps1
+PS> "What's up" | ScriptFileTemplate.ps1
 What's up World!
 
 .EXAMPLE
-PS> PowerShellTemplate.ps1 | %{Return $PSItem}
+PS> ScriptFileTemplate.ps1 | %{Return $PSItem}
 Hello World!
 
 .EXAMPLE
-PS> PowerShellTemplate.ps1
+PS> ScriptFileTemplate.ps1
 Hello World!
 
 .INPUTS
@@ -56,7 +56,7 @@ https://docs.microsoft.com/en-us/powershell/scripting/overview
 .NOTES
 Additional notes.
 Author: Niko Mielikäinen
-Git: https://github.com/mielipuolinen/Powershell-Scripts
+Git: https://github.com/mielipuolinen
 #>
 
 [CmdletBinding()]
