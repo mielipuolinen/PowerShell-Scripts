@@ -13,7 +13,7 @@ Includes graphical user-interface.
 
 .EXAMPLE
 Confirm that $r6s_path is correct, pay attention to folder path format.
-PS> R6SiegeMapChooser.ps1
+PS> R6Siege_MapChooserGUI.ps1
 Choose maps to play
 (Re)start the game
 
