@@ -70,7 +70,18 @@ Param(
 #HTTP Statuses; 200 Successful (incl. wrong params), 401 Unauthorized (API Key?), 403 Forbiddden (API not enabled?), 405 Method Not Allowed (Not HTTP POST?), 429 Too Many Requests (>10req/s)
 #JSON-RPC Erros: -32700 Parse Error, -32600 Invalid Request, -32601 Method not found, -32602 Invalid params, -32000 Server error
 
-. "${PSScriptRoot}\BitDefenderGravityZoneAPI.config.ps1"
+try{
+    . "${PSScriptRoot}\BitDefenderGravityZoneAPI.config.ps1"
+}catch{
+    Write-Host "ERROR - Couldn't load ${PSScriptRoot}\BitDefenderGravityZoneAPI.config.ps1"
+    Exit
+}
+
+if(!(Get-Variable API -ErrorAction Ignore) -or $API -eq "" -or $API.length -lt 40 ){
+    Write-Host "ERROR - Couldn't load API key."
+    Exit
+}
+
 $BaseAPI = "https://cloudgz.gravityzone.bitdefender.com/api/v1.0/jsonrpc/"
 $CompaniesAPI = "${BaseAPI}companies"
 #$LicensingAPI = "${BaseAPI}licensing"
@@ -100,9 +111,7 @@ $JSON = @'
     "id": "1",
     "jsonrpc": "2.0"
 }
-'@
-
-$JSON | ForEach-Object {$_.replace("`"nameFilter`": `"`"","`"nameFilter`": `"*${CompanyName}`"")} 
+'@ | ForEach-Object {$_.replace("`"nameFilter`": `"`"","`"nameFilter`": `"*${CompanyName}`"")} 
 
 $response = Invoke-RestMethod -Uri $CompaniesAPI -Method POST -ContentType "application/json" -Headers $headers -Body $JSON
 Start-Sleep 0.2
@@ -113,6 +122,7 @@ if($response.result.Count -eq 1){
     $companyName = $response.result[0].name
 }else{
     Write-Host "ERROR - Found $($response.result.Count) results, exiting"
+    $response.result | ForEach-Object {Write-Verbose "$_"}
     exit
 }
 
@@ -138,9 +148,7 @@ $JSON = @'
     "id": "1",
     "jsonrpc": "2.0"
 }
-'@ 
-
-$JSON | ForEach-Object {$_.replace("`"parentId`": `"`"","`"parentId`": `""+$parentId+"`"")}
+'@ | ForEach-Object {$_.replace("`"parentId`": `"`"","`"parentId`": `""+$parentId+"`"")}
 
 $response = Invoke-RestMethod -Uri $NetworkAPI -Method POST -ContentType "application/json" -Headers $headers -Body $JSON
 Start-Sleep 0.2
@@ -178,9 +186,7 @@ $JSON = @'
 "id": "1",
 "jsonrpc": "2.0"
 }
-'@
-
-$JSON | ForEach-Object {$_.replace("`"parentId`": `"`"","`"parentId`": `""+$parentId+"`"")} | % {$_.replace("`"page`": `"`"","`"page`": "+$i)}
+'@ | ForEach-Object {$_.replace("`"parentId`": `"`"","`"parentId`": `""+$parentId+"`"")} | % {$_.replace("`"page`": `"`"","`"page`": "+$i)}
 
     $response = Invoke-RestMethod -Uri $NetworkAPI -Method POST -ContentType "application/json" -Headers $headers -Body $JSON
     Start-Sleep 0.2
@@ -224,7 +230,7 @@ Write-Verbose "DONE - $($clients.Count) clients for $($companyName)"
 $endpointCount = $clients.Count
 
 if($ExportFormat -eq "Excel"){
-    $clients | Select-Object @{Label="Hostname";Expression={($_.fqdn)}},@{Label="Managed";Expression={($_.isManaged)}},@{Label="Managed with BEST";Expression={($_.managedWithBest)}},@{Label="OS";Expression={($_.operatingSystemVersion)}},@{Label="IP";Expression={($_.ip)}} | Export-Excel -Path $exportXLSX -Title "BDGZ $($companyName) Endpoints" -WorkSheetname "BDGZ Endpoints" -AutoSize -TableName "Endpoints" -Show
+    $clients | Select-Object @{Label="Hostname";Expression={($_.fqdn)}},@{Label="Managed";Expression={($_.isManaged)}},@{Label="Managed with BEST";Expression={($_.managedWithBest)}},@{Label="OS";Expression={($_.operatingSystemVersion)}},@{Label="IP";Expression={($_.ip)}} | Export-Excel -Path $exportXLSX -Title "BDGZ $($companyName) Endpoints" -WorkSheetname "BDGZ Endpoints" -AutoSize -TableName "Endpoints"
     Remove-item $exportCSV
     
     Write-Host "Company ${companyName} found, exported ${endpointCount} endpoints to ${exportXLSX}"
