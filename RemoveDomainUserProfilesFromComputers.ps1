@@ -34,6 +34,7 @@ Author: Niko Mielikäinen
 Git: https://github.com/mielipuolinen/PowerShell-Scripts
 #>
 
+[CmdletBinding()]
 Param(
     [Uint16]$InactivityDays = 14,
     [String]$DomainSID = "S-1-5-21-0123456789-012345678-012345678"
@@ -44,10 +45,21 @@ Set-StrictMode -Version Latest
 Try{
     $Profiles = Get-CimInstance -ClassName Win32_UserProfile | Where {$_.SID -Like "$DomainSID*"}
     ForEach($Profile in $Profiles){
+        Write-Verbose "Checking $($Profile.LocalPath)"
+
         #$NTUSERDAT = Get-ItemProperty -Path "$($Profile.LocalPath)\NTUSER.DAT"
         #if($NTUSERDAT.LastWriteTime -gt ((Get-Date).AddDays(-$InactivityDays))){Continue}
+
         if($Profile.LastUseTime -gt ((Get-Date).AddDays(-$InactivityDays))){Continue}
         if($Profile.Loaded -eq "True"){Continue}
+
+        Write-Verbose "Deleting $($Profile.LocalPath)"
+
         $Profile | Remove-CimInstance
+
+        if(Test-Path -Path $Profile.LocalPath){
+            Write-Verbose "Profile folder still exists, manually deleting"
+            cmd.exe /c "rmdir /S /Q $($Profile.LocalPath)"
+        }
     }
 }Catch{}
