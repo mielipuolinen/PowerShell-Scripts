@@ -57,6 +57,7 @@ Try{
 
         $Profile | Remove-CimInstance
 
+        #BUG: Powershell is having an issue at handling NTFS junction points and therefore failing to delete profile folder if it includes one.
         if(Test-Path -Path $Profile.LocalPath){
             Write-Verbose "Profile folder still exists, manually deleting"
             cmd.exe /c "rmdir /S /Q $($Profile.LocalPath)"
