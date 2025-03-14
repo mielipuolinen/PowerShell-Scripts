@@ -1,4 +1,5 @@
 # https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-time-service-tools-and-settings
+# https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/configure-w32ime-against-huge-time-offset
 # https://engineering.fb.com/2020/03/18/production-engineering/ntp-service/
 # https://serverfault.com/questions/334682/ws2008-ntp-using-time-windows-com-0x9-time-always-skewed-forwards
 # https://developers.google.com/time/smear
@@ -43,15 +44,26 @@ net stop w32time
 Write-Host "`n🔧 Registering the time service and adding default time configuration" -ForegroundColor Green
 W32tm /register
 
-# Change MinPollInterval to 64 seconds (2^6)
+# Allow time correction up to +-25 hours
+#   Daylight saving time bugs can cause 1-hour time differences.
+#   AM or PM misconfiguration can cause a 12-hour time difference.
+#   Day or date mistakes can cause a 24-hour time difference.
+# MaxPosPhaseCorrection: Specifies the maximum positive time correction in seconds that the service can make.
+# MaxNegPhaseCorrection: Specifies the maximum negative time correction in seconds that the service can make.
+# Setting both to 90000 seconds (25 hours) allows a maximum correction of 25 hours.
+Write-Host "`n🔧 Configuring maximum time correction limits" -ForegroundColor Green
+Set-ItemProperty -Path $w32TimeConfig -Name MaxPosPhaseCorrection -Value 90000 -Type DWord
+Set-ItemProperty -Path $w32TimeConfig -Name MaxNegPhaseCorrection -Value 90000 -Type DWord
+
+# Change MinPollInterval to ~8,5 minutes (512 seconds, 2^9)
 # Default value is 10 (1024 seconds, ~17 minutes)
 Write-Host "`n🔧 Configuring NTP minimum polling interval" -ForegroundColor Green
-Set-ItemProperty -Path $w32TimeConfig -Name MinPollInterval -Value 6 -Type DWord
+Set-ItemProperty -Path $w32TimeConfig -Name MinPollInterval -Value 9 -Type DWord
 
-# Change MaxPollInterval to 1024 seconds (2^10)
+# Change MaxPollInterval to ~2,3 hours (8192 seconds, 2^13)
 # Default value is 15 (32768 seconds, ~9.1 hours)
 Write-Host "`n🔧 Configuring NTP maximum polling interval" -ForegroundColor Green
-Set-ItemProperty -Path $w32TimeConfig -Name MaxPollInterval -Value 10 -Type DWord
+Set-ItemProperty -Path $w32TimeConfig -Name MaxPollInterval -Value 13 -Type DWord
 
 # Set Client Type to NTP
 # Default client NT5DS, the client synchronizes time with a domain controller in the domain hierarchy
@@ -66,11 +78,12 @@ Set-ItemProperty -Path $w32TimeProviders -Name Enabled -Value 1 -Type DWord
 Write-Host "`n🔄 Starting Windows Time Service" -ForegroundColor Green
 net start w32time
 
-# Set the manual peer list with Facebook NTP servers
+# Configure NTP servers
+# /config: Modifies the configuration of the Windows Time service.
 # /update: Notifies the Windows Time service that the configuration changed, causing the changes to take effect.
 # /manualpeerlist:<peers>: Specifies the list of peers from which the Windows Time service obtains time stamps.
 # /syncfromflags:MANUAL: Specifies that the Windows Time service is to use the manual peer list when synchronizing time.
-# /reliable:NO: Specifies that the Windows Time service is not to use the built-in reliability mechanisms.
+# /reliable:NO: Set whether this computer is a reliable time source. This setting is only meaningful on DCs.
 Write-Host "`n🔧 Configuring NTP servers" -ForegroundColor Green
 w32tm /config /manualpeerlist:`"$ntpServers`" /syncfromflags:MANUAL /reliable:NO /update
 
