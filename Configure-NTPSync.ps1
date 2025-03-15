@@ -1,5 +1,5 @@
 #Requires -RunAsAdministrator 
-#Requires -Version 5.0
+#Requires -Version 7.0
 
 <#
 .SYNOPSIS
@@ -135,15 +135,14 @@ while (($WebRequest_Attempt -le $WebRequest_MaxAttempts) -and ($null -eq $DateTi
     if($WebRequest_Attempt -gt 1) {
         Start-Sleep -Seconds $WebRequest_RetryDelay # Doubling as a poor man's rate limiter
     }
-    try{
+    try {
         Write-Host "`t🔗 Connecting to TimeAPI.io (attempt #$($WebRequest_Attempt))" -ForegroundColor Cyan
-        $WebRequest = Invoke-WebRequest -Uri "https://timeapi.io/api/time/current/zone?timeZone=UTC" `
-                      -SkipCertificateCheck -ConnectionTimeoutSeconds 5 -ErrorAction Stop
-        Write-Host "`t✅ Connected to TimeAPI.io" -ForegroundColor Cyan
-        $DateTime_TimeAPI = ($WebRequest.Content | ConvertFrom-Json).dateTime
-        $DateTime_System = Get-Date -AsUTC
-        $DateTime_Difference = New-TimeSpan -Start $DateTime_System -End $DateTime_TimeAPI
-    } catch {
+        #$WebRequest = Invoke-WebRequest -Uri "https://timeapi.io/api/time/current/zone?timeZone=UTC" `
+        #              -SkipCertificateCheck -ConnectionTimeoutSeconds 5 -ErrorAction Stop
+        #Write-Host "`t✅ Connected to TimeAPI.io" -ForegroundColor Cyan
+        #$DateTime_TimeAPI = ($WebRequest.Content | ConvertFrom-Json).dateTime
+        #$DateTime_System = Get-Date -AsUTC
+        #$DateTime_Difference = New-TimeSpan -Start $DateTime_System -End $DateTime_TimeAPI
     } finally { $WebRequest_Attempt++ }
 }
 
