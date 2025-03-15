@@ -254,7 +254,7 @@ Start-Sleep -Seconds 5
 
 # Stop Windows Time Service
 Write-Host "`n🔄 Stopping Windows Time Service" -ForegroundColor Green
-.{Stop-Service -Name w32time -ErrorAction Ignore} 2>$null
+.{Stop-Service -Name w32time} 2>$null # Hack to suppress an expected error message, which doesn't follow the ErrorAction preference.
 
 # Registers the time service to run as a service, and adds default configuration to the registry.
 Write-Host "`n🔧 Registering Windows Time Service and applying default configurations" -ForegroundColor Green
