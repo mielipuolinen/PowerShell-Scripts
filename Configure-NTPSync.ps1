@@ -9,17 +9,26 @@ Configure Windows Time Service to synchronize time with NTP servers.
 This script configures Windows Time Service (w32time) to synchronize time with public NTP peer servers.
 This script allows you to select NTP sources from Facebook, Google, or NTP Pool Project.
 Be aware that this script will reset and reconfigure the Windows Time Service.
-No warranty expressed or implied. Use at your own risk.
+
+Author: https://github.com/mielipuolinen
+Disclaimer: No warranty expressed or implied. Use at your own risk.
 
 .PARAMETER NTPSource
 Specifies the NTP source to use for time synchronization.
 Valid values are "Facebook", "Google", and "NTPPool". Default value is "Facebook".
 
 .EXAMPLE
-PS> .\Configure-NTPSync.ps1
+Run with default parameters to synchronize time with Facebook's NTP servers:
+irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex
 
 .EXAMPLE
-PS> .\Configure-NTPSync.ps1 -NTPSource "Google"
+Run with Google's NTP servers as a time source:
+irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex -NTPSource "Google"
+
+.EXAMPLE
+cd C:\temp
+irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > .\Configure-NTPSync.ps1
+Get-Help -Path .\Configure-NTPSync.ps1 -Full
 
 .INPUTS
 No pipeline inputs are accepted.
@@ -30,30 +39,19 @@ No forwardable outputs are generated.
 .LINK
 https://github.com/mielipuolinen/PowerShell-Scripts/blob/master/Configure-NTPSync.ps1
 
-.LINK
-https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-time-service-tools-and-settings
-
 .NOTES
-File Name: Configure-NTPSync.ps1
-Version: 1.0
-Date: 2025-03-15
-Usage: Save the script file and run it in PowerShell as Administrator.
+Version: 1.1
+Date: 2025-03-16
+Usage: See examples. PowerShell 7.0 or later is required. PowerShell must be run as Administrator.
 Author: https://github.com/mielipuolinen
-
 Disclaimer: No warranty expressed or implied. Use at your own risk.
+
+https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-time-service-tools-and-settings
+https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/configure-w32ime-against-huge-time-offset
+https://engineering.fb.com/2020/03/18/production-engineering/ntp-service/
+https://serverfault.com/questions/334682/ws2008-ntp-using-time-windows-com-0x9-time-always-skewed-forwards
+https://developers.google.com/time/smear
 #>
-
-#https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-time-service-tools-and-settings
-#https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/configure-w32ime-against-huge-time-offset
-#https://engineering.fb.com/2020/03/18/production-engineering/ntp-service/
-#https://serverfault.com/questions/334682/ws2008-ntp-using-time-windows-com-0x9-time-always-skewed-forwards
-#https://developers.google.com/time/smear
-
-# Ensure PowerShell is running as Administrator
-# if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-#    Write-Host "`n⚠️ Please run this script as Administrator." -ForegroundColor Red
-#    exit
-# }
 
 [CmdletBinding()]
 Param(
@@ -62,7 +60,13 @@ Param(
     [string]$NTPSource = "Facebook"
 )
 
-#Set-StrictMode -Version Latest
+Set-StrictMode -Version 3.0
+# Prohibits references to uninitialized variables. This includes uninitialized variables in strings.
+# Prohibits references to non-existent properties of an object.
+# Prohibits function calls that use the syntax for calling methods.
+# Prohibit out of bounds or unresolvable array indexes.
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/set-strictmode
+
 
 
 ####################################################################################################
@@ -78,7 +82,7 @@ Write-Host @'
 '@ -ForegroundColor Cyan
 Write-Host '                                |___/'  -ForegroundColor Cyan -NoNewline
 Write-Host '     g i t h u b . c o m / m i e l i p u o l i n e n    '  -ForegroundColor Magenta -NoNewline
-Write-Host '|___/          v1.0  '  -ForegroundColor Cyan
+Write-Host '|___/          v1.1  '  -ForegroundColor Cyan
 Write-Host ''
 
 
@@ -127,22 +131,23 @@ $NTPPeerList -split " " | ForEach-Object {
 Write-Host "`n🔍 Checking if System clock is approximately on time" -ForegroundColor Green
 
 $WebRequest_MaxAttempts = 2
-$WebRequest_Attempt = 1
+$WebRequest_Attempt = 0
 $WebRequest_RetryDelay = 5 #seconds
 $DateTime_TimeAPI = $null
 
-while (($WebRequest_Attempt -le $WebRequest_MaxAttempts) -and ($null -eq $DateTime_TimeAPI)) {
-    if($WebRequest_Attempt -gt 1) {
-        Start-Sleep -Seconds $WebRequest_RetryDelay # Doubling as a poor man's rate limiter
-    }
+while (($WebRequest_Attempt -lt $WebRequest_MaxAttempts) -and ($null -eq $DateTime_TimeAPI)) {
+
+    # Doubling as a poor man's rate limiter
+    Start-Sleep -Seconds ($WebRequest_RetryDelay*$WebRequest_Attempt)
+
     try {
-        Write-Host "`t🔗 Connecting to TimeAPI.io (attempt #$($WebRequest_Attempt))" -ForegroundColor Cyan
-        #$WebRequest = Invoke-WebRequest -Uri "https://timeapi.io/api/time/current/zone?timeZone=UTC" `
-        #              -SkipCertificateCheck -ConnectionTimeoutSeconds 5 -ErrorAction Stop
-        #Write-Host "`t✅ Connected to TimeAPI.io" -ForegroundColor Cyan
-        #$DateTime_TimeAPI = ($WebRequest.Content | ConvertFrom-Json).dateTime
-        #$DateTime_System = Get-Date -AsUTC
-        #$DateTime_Difference = New-TimeSpan -Start $DateTime_System -End $DateTime_TimeAPI
+        Write-Host "`t🔗 Connecting to TimeAPI.io (attempt #$($WebRequest_Attempt+1))" -ForegroundColor Cyan
+        $WebRequest = Invoke-WebRequest -Uri "https://timeapi.io/api/time/current/zone?timeZone=UTC" `
+                      -SkipCertificateCheck -ConnectionTimeoutSeconds 5 -ErrorAction Stop
+        Write-Host "`t✅ Connected to TimeAPI.io" -ForegroundColor Cyan
+        $DateTime_TimeAPI = ($WebRequest.Content | ConvertFrom-Json).dateTime
+        $DateTime_System = Get-Date -AsUTC
+        $DateTime_Difference = New-TimeSpan -Start $DateTime_System -End $DateTime_TimeAPI
     } finally { $WebRequest_Attempt++ }
 }
 
@@ -179,19 +184,19 @@ if ($null -eq $Service_W32Time) {
     Write-Host "`t✅ Windows Time Service exists" -ForegroundColor Cyan
 }
 
-# Check if Windows Time Service startup type is set to Automatic
+# Check if Windows Time Service startup type is set to Manual
 $Service_W32Time = Get-Service -Name "w32time" -ErrorAction Stop
-if ($Service_W32Time.StartType -ne "Automatic") {
+if ($Service_W32Time.StartType -ne "Manual") {
     try{
-        Write-Host "`t⚠️ Windows Time Service startup type is not set to Automatic" -ForegroundColor Yellow
-        Write-Host "`t🔄 Setting Windows Time Service startup type to Automatic" -ForegroundColor Cyan
-        Set-Service -Name w32time -StartupType Automatic
+        Write-Host "`t⚠️ Windows Time Service startup type is set to: $($Service_W32Time.StartType)" -ForegroundColor Yellow
+        Write-Host "`t🔄 Setting Windows Time Service startup type to Manual" -ForegroundColor Cyan
+        Set-Service -Name w32time -StartupType Manual
         Start-Sleep -Seconds 5
     } catch {
         Write-Error "Unable to set Windows Time Service startup type to Automatic: $($_.Exception.Message)" -ErrorAction Stop
     }
 } else {
-    Write-Host "`t✅ Windows Time Service startup type is set to Automatic" -ForegroundColor Cyan
+    Write-Host "`t✅ Windows Time Service startup type is set to Manual" -ForegroundColor Cyan
 }
 
 # Start Windows Time Service if not running
@@ -254,7 +259,8 @@ Start-Sleep -Seconds 5
 
 # Stop Windows Time Service
 Write-Host "`n🔄 Stopping Windows Time Service" -ForegroundColor Green
-.{Stop-Service -Name w32time} 2>$null # Hack to suppress an expected error message, which doesn't follow the ErrorAction preference.
+try{ Stop-Service -Name w32time } catch{}
+# .{Stop-Service -Name w32time} 2>$null # Hack to suppress an expected error message, which doesn't follow the ErrorAction preference.
 
 # Registers the time service to run as a service, and adds default configuration to the registry.
 Write-Host "`n🔧 Registering Windows Time Service and applying default configurations" -ForegroundColor Green
@@ -384,41 +390,47 @@ $W32TM_TZ_After -split "`n" | ForEach-Object {
 
 
 ####################################################################################################
-# Compare Before & After
-# TODO: Comparison doesn't work exactly as expected when the outputs contain drastically different data.
-#       Fixing requires building a custom comparison function.
+# Before & After: Windows Time Service status
+Write-Host "`n🔍 Before & After: Windows Time Service configuration" -ForegroundColor Green
+Write-Host "`tw32tm /query /configuration" -ForegroundColor Cyan
 
-Write-Host "`n🔍 Comparing Windows Time Service configurations Before and After" -ForegroundColor Green
-Write-Host "`tRows in Cyan: Unchanged" -ForegroundColor Cyan
-Write-Host "`tRows in Red: Before" -ForegroundColor Red
-Write-Host "`tRows in Green: After" -ForegroundColor Green
+$W32TM_Config_Before = $W32TM_Config_Before | Where-Object { $_ -ne "" }
+$W32TM_Config_After = $W32TM_Config_After | Where-Object { $_ -ne "" }
+$W32TM_Config_Before_LineCount = $W32TM_Config_Before.Count
+$W32TM_Config_After_LineCount = $W32TM_Config_After.Count
+$W32TM_Config_MaxLineCount = [math]::Max($W32TM_Config_Before_LineCount, $W32TM_Config_After_LineCount)
+$W32TM_Config_BeforeAndAfter = @()
 
-$W32TM_Config_Diff = Compare-Object -ReferenceObject ($W32TM_Config_Before -split "`n") -DifferenceObject ($W32TM_Config_After -split "`n") -IncludeEqual
-$W32TM_Status_Diff = Compare-Object -ReferenceObject ($W32TM_Status_Before -split "`n") -DifferenceObject ($W32TM_Status_After -split "`n") -IncludeEqual
-#$W32TM_Peers_Diff = Compare-Object -ReferenceObject ($W32TM_Peers_Before -split "`n") -DifferenceObject ($W32TM_Peers_After -split "`n") -IncludeEqual
-#$W32TM_TZ_Diff = Compare-Object -ReferenceObject ($W32TM_TZ_Before -split "`n") -DifferenceObject ($W32TM_TZ_After -split "`n") -IncludeEqual
-
-Write-Host "`n`tw32tm /query /configuration`n" -ForegroundColor Cyan
-$W32TM_Config_Diff | ForEach-Object {
-    if ($_.SideIndicator -eq "==") {
-        Write-Host "`t`t$($_.InputObject)" -ForegroundColor Cyan
-    } elseif ($_.SideIndicator -eq "<=") {
-        Write-Host "`t`t$($_.InputObject)" -ForegroundColor Red
-    } elseif ($_.SideIndicator -eq "=>") {
-        Write-Host "`t`t$($_.InputObject)" -ForegroundColor Green
+for ($i = 0; $i -lt $W32TM_Config_MaxLineCount; $i++) {
+    $W32TM_Config_BeforeAndAfter += [PSCustomObject]@{
+        "Before" = if ($i -lt $W32TM_Config_Before_LineCount) { $W32TM_Config_Before[$i] } else { "" }
+        "After" = if ($i -lt $W32TM_Config_After_LineCount) { $W32TM_Config_After[$i] } else { "" }
     }
 }
 
-Write-Host "`n`tw32tm /query /status`n" -ForegroundColor Cyan
-$W32TM_Status_Diff | ForEach-Object {
-    if ($_.SideIndicator -eq "==") {
-        Write-Host "`t`t$($_.InputObject)" -ForegroundColor Cyan
-    } elseif ($_.SideIndicator -eq "<=") {
-        Write-Host "`t`t$($_.InputObject)" -ForegroundColor Red
-    } elseif ($_.SideIndicator -eq "=>") {
-        Write-Host "`t`t$($_.InputObject)" -ForegroundColor Green
+$W32TM_Config_BeforeAndAfter | Format-Table -AutoSize
+
+
+####################################################################################################
+# Before & After: Windows Time Service status
+Write-Host "`n🔍 Before & After: Windows Time Service status" -ForegroundColor Green
+Write-Host "`tw32tm /query /status" -ForegroundColor Cyan
+
+$W32TM_Status_Before = $W32TM_Status_Before | Where-Object { $_ -ne "" }
+$W32TM_Status_After = $W32TM_Status_After | Where-Object { $_ -ne "" }
+$W32TM_Status_Before_LineCount = $W32TM_Status_Before.Count
+$W32TM_Status_After_LineCount = $W32TM_Status_After.Count
+$W32TM_Status_MaxLineCount = [math]::Max($W32TM_Status_Before_LineCount, $W32TM_Status_After_LineCount)
+$W32TM_Status_BeforeAndAfter = @()
+
+for ($i = 0; $i -lt $W32TM_Status_MaxLineCount; $i++) {
+    $W32TM_Status_BeforeAndAfter += [PSCustomObject]@{
+        "Before" = if ($i -lt $W32TM_Status_Before_LineCount -and $W32TM_Status_Before[$i] -ne "") { $W32TM_Status_Before[$i] } else { "" }
+        "After" = if ($i -lt $W32TM_Status_After_LineCount -and $W32TM_Status_After[$i] -ne "") { $W32TM_Status_After[$i] } else { "" }
     }
 }
+
+$W32TM_Status_BeforeAndAfter | Format-Table -AutoSize
 
 
 ####################################################################################################
