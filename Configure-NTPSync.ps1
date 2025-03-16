@@ -9,6 +9,7 @@ Configure Windows Time Service to synchronize time with NTP servers.
 This script configures Windows Time Service (w32time) to synchronize time with public NTP peer servers.
 This script allows you to select NTP sources from Facebook, Google, or NTP Pool Project.
 Be aware that this script will reset and reconfigure the Windows Time Service.
+This script logs the output to a log file "%TEMP%\Configure-NTPSync.ps1.yyyyMMddHHmmss.log".
 
 Author: https://github.com/mielipuolinen
 Disclaimer: No warranty expressed or implied. Use at your own risk.
@@ -18,17 +19,23 @@ Specifies the NTP source to use for time synchronization.
 Valid values are "Facebook", "Google", and "NTPPool". Default value is "Facebook".
 
 .EXAMPLE
-Run with default parameters to synchronize time with Facebook's NTP servers:
-irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex
+Configure Windows Time Service with Facebook's (set as default) NTP peer servers as a source:
+
+Press Win+R > Copy&Paste the command below > Press Ctrl+Shift+Enter to run as Administrator
+powershell -NoProfile -ExecutionPolicy Bypass -Command 'irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex'
 
 .EXAMPLE
-Run with Google's NTP servers as a time source:
-irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex -NTPSource "Google"
+Configure Windows Time service with Google's NTP peer servers as a source:
+
+Press Win+R > Copy&Paste the command below > Press Ctrl+Shift+Enter to run as Administrator
+powershell -NoProfile -ExecutionPolicy Bypass -Command '$NTP="Google"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"'
 
 .EXAMPLE
-cd C:\temp
-irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > .\Configure-NTPSync.ps1
-Get-Help -Path .\Configure-NTPSync.ps1 -Full
+Configure Windows Time service with NTP Pool Project's (pool.ntp.org) NTP peer servers as a source:
+
+Press Win+R > Copy&Paste the command below > Press Ctrl+Shift+Enter to run as Administrator
+powershell -NoProfile -ExecutionPolicy Bypass -Command '$NTP="NTPPool"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"'
+
 
 .INPUTS
 No pipeline inputs are accepted.
@@ -57,7 +64,11 @@ https://developers.google.com/time/smear
 Param(
     [Parameter(Mandatory=$false)]
     [ValidateSet("Facebook", "Google", "NTPPool", IgnoreCase=$true)]
-    [string]$NTPSource = "Facebook"
+    [string]$NTPSource = "Facebook",
+    [Parameter(Mandatory=$false)]
+    [switch]$SkipTimeAPI = $false,
+    [Parameter(Mandatory=$false)]
+    [switch]$Unattended = $false
 )
 
 Set-StrictMode -Version 3.0
@@ -67,7 +78,7 @@ Set-StrictMode -Version 3.0
 # Prohibit out of bounds or unresolvable array indexes.
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/set-strictmode
 
-
+$ScriptVersion = "v1.1"
 
 ####################################################################################################
 Write-Host @'
@@ -80,11 +91,23 @@ Write-Host @'
    \_____|\___/ |_| |_||_|  |_| \__, | \__,_||_|   \___|  |_| \_|   |_|   |_|       |_____/  \__, ||_| |_| \___|  
                                  __/ |                                                        __/ |               
 '@ -ForegroundColor Cyan
-Write-Host '                                |___/'  -ForegroundColor Cyan -NoNewline
-Write-Host '     g i t h u b . c o m / m i e l i p u o l i n e n    '  -ForegroundColor Magenta -NoNewline
-Write-Host '|___/          v1.1  '  -ForegroundColor Cyan
-Write-Host ''
 
+Write-Host "                                |___/" -ForegroundColor Cyan -NoNewline
+Write-Host "     g i t h u b . c o m / m i e l i p u o l i n e n    " -ForegroundColor Magenta -NoNewline
+Write-Host "|___/          $($ScriptVersion)" -ForegroundColor Cyan
+Write-Host ""
+
+$ScriptLogFile = "$env:TEMP\Configure-NTPSync.ps1.$(Get-Date -f "yyyyMMddHHmmss").log"
+Start-Transcript -Path $ScriptLogFile -NoClobber -Append | Out-Null
+
+# Writing to the log file, invisible in the console
+$CursorPosition = $Host.UI.RawUI.CursorPosition
+Write-Host "" -NoNewline
+Write-Host "Configure NTP Sync $($ScriptVersion)" -NoNewline
+$Host.UI.RawUI.CursorPosition = $CursorPosition
+Write-Host "github.com/mielipuolinen" -NoNewline
+$Host.UI.RawUI.CursorPosition = $CursorPosition
+Write-Host "                                                  "
 
 ####################################################################################################
 # Set registry key paths
@@ -130,50 +153,53 @@ $NTPPeerList -split " " | ForEach-Object {
 # Check current date and time in Windows, and determine if it's about accurate without w32time service
 Write-Host "`n🔍 Checking if System clock is approximately on time" -ForegroundColor Green
 
-$WebRequest_MaxAttempts = 2
-$WebRequest_Attempt = 0
-$WebRequest_RetryDelay = 5 #seconds
-$DateTime_TimeAPI = $null
+if(!$SkipTimeAPI){
 
-while (($WebRequest_Attempt -lt $WebRequest_MaxAttempts) -and ($null -eq $DateTime_TimeAPI)) {
+    $WebRequest_MaxAttempts = 2
+    $WebRequest_Attempt = 0
+    $WebRequest_RetryDelay = 5 #seconds
+    $DateTime_TimeAPI = $null
 
-    # Doubling as a poor man's rate limiter
-    Start-Sleep -Seconds ($WebRequest_RetryDelay*$WebRequest_Attempt)
+    while (($WebRequest_Attempt -lt $WebRequest_MaxAttempts) -and ($null -eq $DateTime_TimeAPI)) {
 
-    try {
-        Write-Host "`t🔗 Connecting to TimeAPI.io (attempt #$($WebRequest_Attempt+1))" -ForegroundColor Cyan
-        $WebRequest = Invoke-WebRequest -Uri "https://timeapi.io/api/time/current/zone?timeZone=UTC" `
-                      -SkipCertificateCheck -ConnectionTimeoutSeconds 5 -ErrorAction Stop
-        Write-Host "`t✅ Connected to TimeAPI.io" -ForegroundColor Cyan
-        $DateTime_TimeAPI = ($WebRequest.Content | ConvertFrom-Json).dateTime
-        $DateTime_System = Get-Date -AsUTC
-        $DateTime_Difference = New-TimeSpan -Start $DateTime_System -End $DateTime_TimeAPI
-    } finally { $WebRequest_Attempt++ }
-}
+        # Doubling as a poor man's rate limiter
+        Start-Sleep -Seconds ($WebRequest_RetryDelay*$WebRequest_Attempt)
 
-if ($null -eq $DateTime_TimeAPI) {
-    Write-Host "`t⚠️ Unable to compare clock sources: TimeAPI.io service is unavailable" -ForegroundColor Yellow
-} else {
-    
-    Write-Host "`tTimeAPI.io clock: $DateTime_TimeAPI" -ForegroundColor Cyan
-    Write-Host "`tSystem clock: $DateTime_System" -ForegroundColor Cyan
-    Write-Host "`tDifference: $($DateTime_Difference.TotalSeconds) seconds" -ForegroundColor Cyan
-
-    $AcceptableTimeDifference = 1 # +- seconds
-    if ($DateTime_Difference.TotalSeconds -gt $AcceptableTimeDifference) {
-        Write-Host "`t⚠️ System clock is out of sync" -ForegroundColor Yellow
-    } elseif ($DateTime_Difference.TotalSeconds -lt $AcceptableTimeDifference*-1) {
-        Write-Host "`t⚠️ System clock is out of sync" -ForegroundColor Yellow
-    } else {
-        Write-Host "`t✅ System clock is approximately on time" -ForegroundColor Cyan
+        try {
+            Write-Host "`t🔗 Connecting to TimeAPI.io (attempt #$($WebRequest_Attempt+1))" -ForegroundColor Cyan
+            $WebRequest = Invoke-WebRequest -Uri "https://timeapi.io/api/time/current/zone?timeZone=UTC" `
+                        -SkipCertificateCheck -ConnectionTimeoutSeconds 10 -ErrorAction Stop
+            Write-Host "`t✅ Connected to TimeAPI.io" -ForegroundColor Cyan
+            $DateTime_TimeAPI = ($WebRequest.Content | ConvertFrom-Json).dateTime
+            $DateTime_System = Get-Date -AsUTC
+            $DateTime_Difference = New-TimeSpan -Start $DateTime_System -End $DateTime_TimeAPI
+        } finally { $WebRequest_Attempt++ }
     }
-}
 
-Write-Host "`n🔍 Checking Windows Time Service" -ForegroundColor Green
+    if ($null -eq $DateTime_TimeAPI) {
+        Write-Host "`t⚠️ Unable to compare clock sources: TimeAPI.io service is unavailable" -ForegroundColor Yellow
+    } else {
+        
+        Write-Host "`tTimeAPI.io clock: $DateTime_TimeAPI" -ForegroundColor Cyan
+        Write-Host "`tSystem clock: $DateTime_System" -ForegroundColor Cyan
+        Write-Host "`tDifference: $($DateTime_Difference.TotalSeconds) seconds" -ForegroundColor Cyan
 
+        $AcceptableTimeDifference = 1 # +- seconds
+        if ($DateTime_Difference.TotalSeconds -gt $AcceptableTimeDifference) {
+            Write-Host "`t⚠️ System clock is out of sync" -ForegroundColor Yellow
+        } elseif ($DateTime_Difference.TotalSeconds -lt $AcceptableTimeDifference*-1) {
+            Write-Host "`t⚠️ System clock is out of sync" -ForegroundColor Yellow
+        } else {
+            Write-Host "`t✅ System clock is approximately on time" -ForegroundColor Cyan
+        }
+    }
+
+}else{ Write-Host "`t⚠️ User requested to skip TimeAPI.io check" -ForegroundColor Yellow }
 
 ####################################################################################################
 # Check if Windows Time Service exists
+Write-Host "`n🔍 Checking Windows Time Service" -ForegroundColor Green
+
 $Service_W32Time = Get-Service -Name "w32time" -ErrorAction SilentlyContinue
 if ($null -eq $Service_W32Time) {
     Write-Host "`t⚠️ Windows Time Service does not exist on this system" -ForegroundColor Yellow
@@ -434,4 +460,19 @@ $W32TM_Status_BeforeAndAfter | Format-Table -AutoSize
 
 
 ####################################################################################################
+# Finishing touches
 Write-Host "`n✅ NTP Configuration Complete!`n" -ForegroundColor Green
+Write-Host "Log file: $ScriptLogFile" -ForegroundColor Gray
+
+if($Unattended){
+    Write-Host "`nUnattended mode: Exiting script. Bye! 👋" -ForegroundColor Gray
+}else{
+    Write-Host "`nPlease read the output above before exiting." -ForegroundColor Gray
+    Write-Host "Waiting for 3 seconds to avoid accidental exiting." -ForegroundColor Gray
+    Start-Sleep -Seconds 3
+    Write-Host "Press any key to exit. Bye! 👋" -ForegroundColor Gray
+    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+}
+
+Write-Host ""
+Stop-Transcript | Out-Null
