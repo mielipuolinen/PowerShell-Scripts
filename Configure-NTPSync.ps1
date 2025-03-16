@@ -18,23 +18,29 @@ Disclaimer: No warranty expressed or implied. Use at your own risk.
 Specifies the NTP source to use for time synchronization.
 Valid values are "Facebook", "Google", and "NTPPool". Default value is "Facebook".
 
+.PARAMETER SkipTimeAPI
+Skips the TimeAPI.io check to compare the system clock with the current time from TimeAPI.io.
+
+.PARAMETER Unattended
+Runs the script in unattended mode. The script will exit after completion without user interaction.
+
 .EXAMPLE
 Configure Windows Time Service with Facebook's (set as default) NTP peer servers as a source:
 
-Press Win+R > Copy&Paste the command below > Press Ctrl+Shift+Enter to run as Administrator
-powershell -NoProfile -ExecutionPolicy Bypass -Command 'irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex'
+Run Powershell 7 as Administrator > Copy&Paste the command below > Press Enter
+irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex
 
 .EXAMPLE
 Configure Windows Time service with Google's NTP peer servers as a source:
 
-Press Win+R > Copy&Paste the command below > Press Ctrl+Shift+Enter to run as Administrator
-powershell -NoProfile -ExecutionPolicy Bypass -Command '$NTP="Google"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"'
+Run Powershell 7 as Administrator > Copy&Paste the command below > Press Enter
+$NTP="Google"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"
 
 .EXAMPLE
 Configure Windows Time service with NTP Pool Project's (pool.ntp.org) NTP peer servers as a source:
 
-Press Win+R > Copy&Paste the command below > Press Ctrl+Shift+Enter to run as Administrator
-powershell -NoProfile -ExecutionPolicy Bypass -Command '$NTP="NTPPool"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"'
+Run Powershell 7 as Administrator > Copy&Paste the command below > Press Enter
+$NTP="NTPPool"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"
 
 
 .INPUTS
@@ -434,7 +440,7 @@ for ($i = 0; $i -lt $W32TM_Config_MaxLineCount; $i++) {
     }
 }
 
-$W32TM_Config_BeforeAndAfter | Format-Table -AutoSize
+$W32TM_Config_BeforeAndAfter | Format-Table -Wrap
 
 
 ####################################################################################################
@@ -456,7 +462,7 @@ for ($i = 0; $i -lt $W32TM_Status_MaxLineCount; $i++) {
     }
 }
 
-$W32TM_Status_BeforeAndAfter | Format-Table -AutoSize
+$W32TM_Status_BeforeAndAfter | Format-Table -Wrap
 
 
 ####################################################################################################
