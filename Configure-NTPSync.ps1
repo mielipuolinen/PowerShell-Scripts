@@ -18,23 +18,29 @@ Disclaimer: No warranty expressed or implied. Use at your own risk.
 Specifies the NTP source to use for time synchronization.
 Valid values are "Facebook", "Google", and "NTPPool". Default value is "Facebook".
 
+.PARAMETER SkipTimeAPI
+Skips the TimeAPI.io check to compare the system clock with the current time from TimeAPI.io.
+
+.PARAMETER Unattended
+Runs the script in unattended mode. The script will exit after completion without user interaction.
+
 .EXAMPLE
 Configure Windows Time Service with Facebook's (set as default) NTP peer servers as a source:
 
-Press Win+R > Copy&Paste the command below > Press Ctrl+Shift+Enter to run as Administrator
-powershell -NoProfile -ExecutionPolicy Bypass -Command 'irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex'
+Run Powershell 7 as Administrator > Copy&Paste the command below > Press Enter
+irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex
 
 .EXAMPLE
 Configure Windows Time service with Google's NTP peer servers as a source:
 
-Press Win+R > Copy&Paste the command below > Press Ctrl+Shift+Enter to run as Administrator
-powershell -NoProfile -ExecutionPolicy Bypass -Command '$NTP="Google"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"'
+Run Powershell 7 as Administrator > Copy&Paste the command below > Press Enter
+$NTP="Google"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"
 
 .EXAMPLE
 Configure Windows Time service with NTP Pool Project's (pool.ntp.org) NTP peer servers as a source:
 
-Press Win+R > Copy&Paste the command below > Press Ctrl+Shift+Enter to run as Administrator
-powershell -NoProfile -ExecutionPolicy Bypass -Command '$NTP="NTPPool"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"'
+Run Powershell 7 as Administrator > Copy&Paste the command below > Press Enter
+$NTP="NTPPool"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"
 
 
 .INPUTS
@@ -47,7 +53,7 @@ No forwardable outputs are generated.
 https://github.com/mielipuolinen/PowerShell-Scripts/blob/master/Configure-NTPSync.ps1
 
 .NOTES
-Version: 1.1
+Version: 1.2
 Date: 2025-03-16
 Usage: See examples. PowerShell 7.0 or later is required. PowerShell must be run as Administrator.
 Author: https://github.com/mielipuolinen
@@ -78,7 +84,7 @@ Set-StrictMode -Version 3.0
 # Prohibit out of bounds or unresolvable array indexes.
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/set-strictmode
 
-$ScriptVersion = "v1.1"
+$ScriptVersion = "v1.2"
 
 ####################################################################################################
 Write-Host @'
@@ -151,6 +157,7 @@ $NTPPeerList -split " " | ForEach-Object {
 
 ####################################################################################################
 # Check current date and time in Windows, and determine if it's about accurate without w32time service
+# TODO: Refactor, use Invoke-WebRequest and read headers to get the current time from trusted sources (google, MS, etc.)
 Write-Host "`n🔍 Checking if System clock is approximately on time" -ForegroundColor Green
 
 if(!$SkipTimeAPI){
@@ -295,6 +302,28 @@ Start-Sleep -Seconds 5
 
 
 ####################################################################################################
+# UtilizeSSlTimeData
+# Specifies whether the Windows Time service uses SSL time data that is received from the time source.
+# Default value is 1.
+# https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-server-2016-improvements#secure-time-seeding
+# https://arstechnica.com/security/2023/08/windows-feature-that-resets-system-clocks-based-on-random-data-is-wreaking-havoc/
+# https://serverfault.com/questions/1131670/windows-server-time-service-jumps-into-the-future-and-partially-back
+Write-Host "`n🔧 Disable SSL time data utilization" -ForegroundColor Green
+Write-Host "`tRegistry Key: $RegKeyPath_W32TimeConfig" -ForegroundColor Cyan
+
+try {
+    $UtilizeSslTimeData = (Get-ItemProperty -Path $RegKeyPath_W32TimeConfig -Name "UtilizeSslTimeData")
+    $UtilizeSslTimeData = $UtilizeSslTimeData.UtilizeSslTimeData
+}
+catch { $UtilizeSslTimeData = -1 }
+
+if($UtilizeSslTimeData -eq 0){
+    Write-Host "`tSSL time data utilization is already disabled" -ForegroundColor Cyan
+}else{
+    Write-Host "`tUtilizeSSlTimeData: 0" -ForegroundColor Cyan
+    Set-ItemProperty -Path $RegKeyPath_W32TimeConfig -Name "UtilizeSslTimeData" -Value 1 -Type DWord
+}
+
 # Allow time correction up to +-25 hours
 #   Daylight saving time bugs can cause 1-hour time differences.
 #   AM or PM misconfiguration can cause a 12-hour time difference.
@@ -434,7 +463,7 @@ for ($i = 0; $i -lt $W32TM_Config_MaxLineCount; $i++) {
     }
 }
 
-$W32TM_Config_BeforeAndAfter | Format-Table -AutoSize
+$W32TM_Config_BeforeAndAfter | Format-Table -Wrap
 
 
 ####################################################################################################
@@ -456,7 +485,7 @@ for ($i = 0; $i -lt $W32TM_Status_MaxLineCount; $i++) {
     }
 }
 
-$W32TM_Status_BeforeAndAfter | Format-Table -AutoSize
+$W32TM_Status_BeforeAndAfter | Format-Table -Wrap
 
 
 ####################################################################################################
