@@ -1,46 +1,100 @@
-#Requires -RunAsAdministrator 
+#Requires -RunAsAdministrator
 #Requires -Version 5.1
 
 <#
 .SYNOPSIS
-Configure Windows Time Service to synchronize time with NTP servers.
+Advanced diagnostics and reconfiguration of Windows Time Service. Works with
+Windows 10, Windows 11, and Windows Server 2016 and later.
 
 .DESCRIPTION
-This script configures Windows Time Service (w32time) to synchronize time with public NTP peer servers.
-This script allows you to select NTP sources from Facebook, Google, or NTP Pool Project.
-Be aware that this script will reset and reconfigure the Windows Time Service.
-This script logs the output to a log file "%TEMP%\Configure-NTPSync.ps1.yyyyMMddHHmmss.log".
+This script provides comprehensive Windows Time Service (w32time) diagnostics
+and reconfiguration capabilities for Windows 10, Windows 11, and
+Windows Server 2016 and later systems.
+
+Key features:
+- Automatically reconfigures and manages the Windows Time Service (w32time)
+- Advanced parameter tuning of Windows Time Service
+- Supports Facebook, Google, and NTP Pool Project time peer servers
+- Performs thorough time configuration analysis and time comparison
+- Supports unattended operation for automated deployments
+- Extensive logging, error detection and error handling
+- Modularly written for easier maintenance, updates and customization
+- Compatible with PowerShell 5 and PowerShell 7
+
+This script logs the output by default to a log file:
+%TEMP%\Configure-NTPSync.ps1.yyyyMMddHHmmss.log
 
 Author: https://github.com/mielipuolinen
-Disclaimer: No warranty expressed or implied. Use at your own risk.
+Disclaimer: Be aware that this script will reset and reconfigure
+the Windows Time Service. No warranty expressed or implied.
+Always use at your own risk.
 
 .PARAMETER NTPSource
-Specifies the NTP source to use for time synchronization.
-Valid values are "Facebook", "Google", and "NTPPool". Default value is "Facebook".
+Specifies the NTP source, also known as NTP peer servers, to use for time
+synchronization. Valid values are "Facebook", "Google", and "NTPPool".
+Default value is "Facebook".
 
 .PARAMETER SkipTimeComparisonWithMicrosoft
-If specified, the script will skip the check to compare the system clock with the current time from Microsoft's web server.
+If specified, the script will skip the check to compare the system clock with
+the current time from Microsoft's web server. Default value is $false.
 
 .PARAMETER Unattended
-Runs the script in unattended mode. The script will exit after completion without user interaction.
+If specified, executes the script in unattended mode. The script will exit
+after completion without user interaction. The script run prompts
+a visible powershell window, unless hidden externally. Default value is $false.
+
+.PARAMETER SkipUserConfirmation
+If specified, the script will skip the user confirmation in interactive mode
+before proceeding with changes. Default value is $false.
+
+.PARAMETER NoLoggingToFile
+If specified, the script will not log to a file. Default value is $false.
+
+.PARAMETER LogFile
+Specifies the path to the log file. Default value is 
+"$env:TEMP\Configure-NTPSync.ps1.$(Get-Date -f "yyyyMMddHHmmss").log".
 
 .EXAMPLE
-Configure Windows Time Service with Facebook's (set as default) NTP peer servers as a source:
+PS C:\>irm `
+https://mielipuolinen.github.io/PowerShell-Scripts/Configure-NTPSync.ps1 | iex
 
-Run Powershell as Administrator > Copy&Paste the command below > Press Enter
-irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 | iex
+This is the simplest way to run the script on a Windows device in
+an interactive mode. Use this for reconfiguring Windows Time Service with
+my personally recommended parameters and Facebook's NTP peer servers.
+Facebook's NTP peer servers are hihgly likely the highest quality
+NTP peer servers available publically and over the internet.
+
+Copy the following command string to download and execute the latest available
+version of this script. The script will ask for your confirmation before
+starting the reconfiguration process.
+
+The command string to copy:
+irm https://mielipuolinen.github.io/PowerShell-Scripts/Configure-NTPSync.ps1 `
+| iex
+
+Run Powershell as Administrator > Paste the string > Press Enter
 
 .EXAMPLE
-Configure Windows Time service with Google's NTP peer servers as a source:
+PS C:\>irm `
+https://mielipuolinen.github.io/PowerShell-Scripts/Configure-NTPSync.ps1 > `
+"$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" `
+-NTPSource "Google" -SkipTimeComparisonWithMicrosoft -SkipUserConfirmation `
+-NoLoggingToFile; rm "$env:TEMP\Configure-NTPSync.ps1"
 
-Run Powershell as Administrator > Copy&Paste the command below > Press Enter
-$NTP="Google"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"
+Execute in user-interactive mode with Google's NTP peer servers as a source.
+Skips the time comparison with Microsoft. Skips the user confirmation before
+proceeding with changes. Disables logging to a file. Saves the script
+temporarily in a file and removes it after successful execution.
 
 .EXAMPLE
-Configure Windows Time service with NTP Pool Project's (pool.ntp.org) NTP peer servers as a source:
+PS C:\>irm `
+https://mielipuolinen.github.io/PowerShell-Scripts/Configure-NTPSync.ps1 > `
+"$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" `
+-NTPSource "NTPPool" -Unattended; rm "$env:TEMP\Configure-NTPSync.ps1"
 
-Run Powershell as Administrator > Copy&Paste the command below > Press Enter
-$NTP="NTPPool"; irm https://raw.githubusercontent.com/mielipuolinen/PowerShell-Scripts/master/Configure-NTPSync.ps1 > "$env:TEMP\Configure-NTPSync.ps1"; & "$env:TEMP\Configure-NTPSync.ps1" -NTPSource $NTP; rm "$env:TEMP\Configure-NTPSync.ps1"
+Execute in an unattended mode with NTP Pool Project's NTP peer servers
+as a source. Saves the script temporarily in a file and removes it after
+successful execution.
 
 .INPUTS
 No pipeline inputs are accepted.
@@ -49,21 +103,79 @@ No pipeline inputs are accepted.
 No forwardable outputs are generated.
 
 .LINK
-https://github.com/mielipuolinen/PowerShell-Scripts/blob/master/Configure-NTPSync.ps1
+https://github.com/mielipuolinen/PowerShell-Scripts/
 
 .NOTES
-Version: 1.3
-Date: 2025-07-05
-Usage: See examples. PowerShell 5.1 or later is required. PowerShell must be run as Administrator.
+Version: 1.4
+Date: 2025-07-06
+Usage: See the examples.
 Author: https://github.com/mielipuolinen
-Disclaimer: No warranty expressed or implied. Use at your own risk.
+Disclaimer: No warranty expressed or implied. Always use at your own risk.
+
+v1.0: Initial release
+v1.1: Completely overhauled the script
+v1.2: Completely overhauled the script (again, I think)
+v1.3: Nearly completely overhauled the script
+    Added PowerShell 5 support.
+    Time comparison now uses HTTP header's Date field.
+    Replaced TimeAPI.io with Microsoft for time comparison.
+    Improved business logic, error handling and logging.
+    Interactive mode requests user confirmation before proceeding with changes.
+v1.4: Improved help texts, new parameters and additional elevation check
+    Improved comment-based help text for the script.
+    Added SkipUserConfirmation, NoLoggingToFile and LogFile parameters.
+    Additional elevation check for "irm ... | iex" script execution
+
+TODO: Add support for domain hierarchies (NT5DS clients) for domain-joined
+computers and Domain Controllers.
+[MS-SNTP]: Network Time Protocol (NTP) Authentication Extensions:
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-sntp/8106cb73-ab3a-4542-8bc8-784dd32031cc
+[MS-SNTP]: Protocol Details: Server Details: Abstract Data Model:
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-sntp/af86ea4b-9d57-4dc2-ad16-378edea01fcf
+Windows Server 2003 Resource Kit Registry Reference / SYSTEM / Parameters\W32Time / Config Subkey / Config\AnnounceFlags Entry:
+https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2003/cc784191(v=ws.10)
+[MS-W32T]: W32Time Remote Protocol:
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-w32t/0e425c15-8ae4-4c2a-b431-84a66b92986a
+
+TODO: Add one larger try-catch block to wrap the script, for handling errors and
+logging them gracefully in all cases.
+
+TODO: Create an audit-only mode, which reads the current configuration and
+status, and displays it in a readable format with highlighting
+important findings.
+
+TODO: Create own repo for this script to simplify linking, downloading and
+executing the script with different parameters.
+
+TODO: Add check for leap seconds? w32tm /leapseconds /getstatus
+
+TODO: Add support for PTP (Precision Time Protocol).
+
+TODO: Add support for w32tm /monitor.
+w32tm /monitor /domain:... /computers:... /threads:N /ipprotocol:4|6 /nowarn
+    /monitor
+        /domain: specifies which domain to monitor. If no domain name is given,
+            or neither the domain nor computers option is specified, the default
+            domain is used. This option may be used more than once.
+        /computers: monitors the given list of computers. Computer names are
+            separated by commas, with no spaces. If a name is prefixed with
+            a '*', it is treated as an AD PDC. This option may be used more 
+            than once.
+        /threads: how many computers to analyze simultaneously. The default 
+            value is 3. Allowed range is 1-50.
+        /ipprotocol:4|6: specify the IP protocol to use. The default is to use
+            whatever is available.
+        /nowarn: skip warning message.
 
 https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-time-service-tools-and-settings
 https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/configure-w32ime-against-huge-time-offset
 https://engineering.fb.com/2020/03/18/production-engineering/ntp-service/
 https://serverfault.com/questions/334682/ws2008-ntp-using-time-windows-com-0x9-time-always-skewed-forwards
 https://developers.google.com/time/smear
+https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/configuring-systems-for-high-accuracy
+https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/support-boundary-high-accuracy-time
 #>
+
 
 [CmdletBinding()]
 Param(
@@ -74,6 +186,15 @@ Param(
 
     [Parameter(Mandatory=$false)]
     [switch]$SkipTimeComparisonWithMicrosoft = $false,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$SkipUserConfirmation = $false,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$NoLoggingToFile = $false,
+
+    [Parameter(Mandatory=$false)]
+    [string]$LogFile = "$env:TEMP\Configure-NTPSync.ps1.$(Get-Date -f "yyyyMMddHHmmss").log",
 
     [Parameter(Mandatory=$false)]
     [switch]$Unattended = $false
@@ -87,9 +208,11 @@ Set-StrictMode -Version 3.0
 # Prohibit out of bounds or unresolvable array indexes.
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/set-strictmode
 
-$ScriptVersion = "v1.3"
+$ScriptVersion = "v1.4"
+
 
 ####################################################################################################
+# ASCII Art and initializing logging
 Write-Host @'
 
     _____                __  _                             _   _  _______  _____      _____                       
@@ -106,19 +229,39 @@ Write-Host "     g i t h u b . c o m / m i e l i p u o l i n e n    " -Foregroun
 Write-Host "|___/          $($ScriptVersion)" -ForegroundColor Cyan
 Write-Host ""
 
-$ScriptLogFile = "$env:TEMP\Configure-NTPSync.ps1.$(Get-Date -f "yyyyMMddHHmmss").log"
-Start-Transcript -Path $ScriptLogFile -NoClobber | Out-Null #Appending only works in PowerShell 7.0 or later
+if(!$NoLoggingToFile){
 
-# Writing to the log file, invisible in the console
-$CursorPosition = $Host.UI.RawUI.CursorPosition
-Write-Host "" -NoNewline
-Write-Host "Configure NTP Sync $($ScriptVersion)" -NoNewline
-$Host.UI.RawUI.CursorPosition = $CursorPosition
-Write-Host "github.com/mielipuolinen" -NoNewline
-$Host.UI.RawUI.CursorPosition = $CursorPosition
-Write-Host "                                                  "
+    $ScriptLogFile = "$env:TEMP\Configure-NTPSync.ps1.$(Get-Date -f "yyyyMMddHHmmss").log"
+    Start-Transcript -Path $ScriptLogFile -NoClobber | Out-Null #Appending only works in PowerShell 7.0 or later
+
+    # Writing to the log file, but hidden in the console
+    $CursorPosition = $Host.UI.RawUI.CursorPosition
+    Write-Host "" -NoNewline
+    Write-Host "Configure NTP Sync $($ScriptVersion)" -NoNewline
+    $Host.UI.RawUI.CursorPosition = $CursorPosition
+    Write-Host "github.com/mielipuolinen" -NoNewline
+    $Host.UI.RawUI.CursorPosition = $CursorPosition
+    Write-Host "                                                  "
+
+}
+
 
 ####################################################################################################
+# Additional elevation check
+# `#Requires` is a compile-time feature. Code streamed in via Invoke-Expression (irm ... | iex) is parsed and compiled
+#   on the fly into REPL (Read-Eval-Print-Loop) session, effectively bypassing the upfront requirement check.
+
+$CurrentIdentity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+$AdminRole = [Security.Principal.WindowsBuiltinRole]::Administrator
+
+if (!$CurrentIdentity.IsInRole($AdminRole)) {
+    Write-Error "This script must be run as Administrator. Exiting." -ErrorAction Stop
+}
+
+
+####################################################################################################
+# General variables
+
 # Set registry key paths
 $RegKeyPath_W32TimeConfig = "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config"
 $RegKeyPath_W32TimeParameters = "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters"
@@ -133,6 +276,8 @@ $Cmd_W32TM_TZ = "w32tm /tz"
 
 ####################################################################################################
 # Select NTP Peers
+# TODO: Add support for domain hierarchy: add a parameter for StripChartServer
+
 Switch ($NTPSource) {
     "Facebook" {
         Write-Host "`nSelected Facebook's NTP peers as a time source" -ForegroundColor Green
@@ -192,8 +337,9 @@ if(!$SkipTimeComparisonWithMicrosoft){
 
 }else{ Write-Host "`tUser requested to skip time comparison with Microsoft" -ForegroundColor Yellow }
 
+
 ####################################################################################################
-# Let user cancel now before any changes are made
+# User confirmation before proceeding with changes
 Write-Host "`nConfirmation before proceeding with changes" -ForegroundColor Green
 
 if(!$Unattended){
@@ -213,6 +359,7 @@ if(!$Unattended){
 } else {
     Write-Host "`tUnattended mode: Continuing without user interaction." -ForegroundColor Cyan
 }
+
 
 ####################################################################################################
 # Register Windows Time Service if service does not exist
@@ -276,11 +423,19 @@ try{
 
 
 ####################################################################################################
-# Create a strip chart
+# Create a strip chart to display the time offset
 # Display the time offset between the local computer and the selected NTP peer servers
-# /stripchart: Displays a strip chart of the offset between the local computer and the target computer.
-# /period: Specifies the time interval between samples in seconds.
-# /samples: Specifies the number of samples to collect.
+# w32tm /stripchart /computer:$StripChartServer /period:1 /samples:5
+#   /stripchart: Displays a strip chart of the offset between the local computer and the target computer.
+#       /period: Specifies the time interval between samples in seconds. Default is 2 seconds.
+#       /samples: Specifies the number of samples to collect. If not specified, collects until Ctrl+C is pressed.
+#       /dataonly: Displays only the data, without the strip chart.
+#       /computer: Specifies the time server to measure against.
+#       /packetinfo: print out NTP packet response message.
+#       /ipprotocol:4|6: specify the IP protocol to use. The default is to use whatever is available.
+#       /rdtsc: display the TSC values and time offset data in CSV format.
+#           The output displays TSC and FILETIME values captured before the NTP request is sent, TSC value after an NTP
+#           response is received along with NTP roundtrip and time offset values.
 Write-Host "`nCreating Strip Chart to display current time offset" -ForegroundColor Green
 $Cmd_W32TM_StripChart = "w32tm /stripchart /computer:$StripChartServer /period:1 /samples:5"
 
@@ -370,11 +525,18 @@ Start-Sleep -Seconds 5
 
 ####################################################################################################
 # Disable SSL time data utilization
-# Specifies whether the Windows Time service uses SSL time data that is received from the time source.
-# Default value is 1.
+# The setting controls whether the Windows Time service uses SSL/TLS handshakes timestamp data for clock
+#   synchronization. This feature was introduced in Windows Server 2016 as a "secure time seeding" mechanism to help
+#   systems maintain accurate time if the clock is heavily out of sync after booting and therefore NTP may be unable to
+#   correct it. However, Microsoft's implementation is based on misinterpreting the RFC5246 specification for TLS 1.2,
+#   and additionally TLS 1.3 handshake's "random bytes" are completely random, instead of using timestamp as part of
+#   the random bytes. This feature is enabled by default.
+#
 # https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-server-2016-improvements#secure-time-seeding
 # https://arstechnica.com/security/2023/08/windows-feature-that-resets-system-clocks-based-on-random-data-is-wreaking-havoc/
 # https://serverfault.com/questions/1131670/windows-server-time-service-jumps-into-the-future-and-partially-back
+# https://security.stackexchange.com/questions/71364/tls-reliance-on-system-time
+# https://www.rfc-editor.org/rfc/rfc5246
 Write-Host "`nDisable SSL time data utilization" -ForegroundColor Green
 Write-Host "`tRegistry Key: $RegKeyPath_W32TimeConfig" -ForegroundColor Cyan
 
@@ -409,7 +571,8 @@ New-ItemProperty -Path $RegKeyPath_W32TimeConfig -Name "MaxNegPhaseCorrection" `
 # Change MinPollInterval to 2^9 (~8,5 minutes, 512 seconds)
 # Default value is 2^10 (~17 minutes, 1024 seconds)
 # Value is represented in base 2, so 2^9 = 512 seconds
-# The minimum polling interval is the shortest time that the Windows Time service will wait between time synchronization attempts.
+# The minimum polling interval is the shortest time that the Windows Time service will wait between time
+#   synchronization attempts.
 Write-Host "`nConfiguring NTP minimum polling interval" -ForegroundColor Green
 Write-Host "`tRegistry Key: $RegKeyPath_W32TimeConfig" -ForegroundColor Cyan
 
@@ -425,7 +588,8 @@ New-ItemProperty -Path $RegKeyPath_W32TimeConfig -Name "MinPollInterval" `
 # Change MaxPollInterval to 2^14 (~4,5 hours, 16384 seconds)
 # Default value is 2^15 (~9.1 hours, 32768 seconds)
 # Value is represented in base 2, so 2^9 = 512 seconds
-# The maximum polling interval is the longest time that the Windows Time service will wait between time synchronization attempts.
+# The maximum polling interval is the longest time that the Windows Time service will wait between time synchronization
+#   attempts.
 Write-Host "`nConfiguring NTP maximum polling interval" -ForegroundColor Green
 Write-Host "`tRegistry Key: $RegKeyPath_W32TimeConfig" -ForegroundColor Cyan
 
@@ -439,6 +603,7 @@ New-ItemProperty -Path $RegKeyPath_W32TimeConfig -Name "MaxPollInterval" `
 
 ####################################################################################################
 # Set W32Time Client Type to NTP
+# TODO: Add support for domain hierarchy (NT5DS) for domain-joined computers
 # Default client NT5DS, the client synchronizes time with a domain controller in the domain hierarchy
 Write-Host "`nConfiguring W32Time client type" -ForegroundColor Green
 Write-Host "`tRegistry Key: $RegKeyPath_W32TimeParameters" -ForegroundColor Cyan
@@ -474,18 +639,37 @@ Start-Sleep -Seconds 5
 
 ####################################################################################################
 # Configure NTP Peers
-# w32tm /config: Modifies the configuration of the Windows Time service.
-#   /update: Notifies the Windows Time service that the configuration changed, causing the changes to take effect.
-#   /manualpeerlist:<peers>: Specifies the list of peers from which the Windows Time service obtains time stamps.
-#   /syncfromflags:MANUAL: Specifies that the service is to use the manual peer list when synchronizing time.
-#   /reliable:NO: Set whether this computer is a reliable time source. This setting is only meaningful on DCs.
-Write-Host "`nConfiguring NTP Peers" -ForegroundColor Green
+# TODO: Add support for domain hierarchy (NT5DS) for domain-joined computers and Domain Controllers
+# w32tm /config /manualpeerlist:$NTPPeerList /syncfromflags:MANUAL /reliable:NO /update
+#   /config: Modifies the configuration of the Windows Time service.
+#       /manualpeerlist: Specifies the list of peers from which the Windows Time service obtains time stamps.
+#           Format: "server1,flags server2,flags server3,flags"
+#           Available flags:
+#           - 0x01: UseSpecialPollInterval (use special poll interval)
+#           - 0x02: UseAsFallbackOnly (use as fallback only)
+#           - 0x04: SymmetricActive (symmetric active mode)
+#           - 0x08: Client (client mode) - most common for NTP clients
+#           - 0x10: Server (server mode)
+#           - 0x20: Peer (peer mode)
+#           - 0x40: Broadcast (broadcast mode)
+#           - 0x80: Multicast (multicast mode)
+#       /syncfromflags:
+#           MANUAL: Specifies that the service is to use the manual peer list when synchronizing time.
+#           DOMHIER: Specifies that the service is to use the domain hierarchy when synchronizing time.
+#           ALL: Specifies that the service is to use both manual peer list and domain hierarchy.
+#           NO: Specifies that the service is not to synchronize from any source.
+#       /reliable:YES|NO
+#           Set whether this computer is a reliable time source. This setting is meaningful on Domain Controllers.
+#       /update: Notifies the Windows Time service that the configuration changed, causing the changes to take effect.
+Write-Host "`nConfiguring NTP Peers and updating the configuration" -ForegroundColor Green
 
 $Cmd_W32TM_ConfigManualPeerList = `
     "w32tm /config /manualpeerlist:`"$NTPPeerList`" /syncfromflags:MANUAL /reliable:NO /update"
 
 Write-Host "`t$Cmd_W32TM_ConfigManualPeerList" -ForegroundColor Cyan
 Write-Host "`t$(Invoke-Expression $Cmd_W32TM_ConfigManualPeerList)" -ForegroundColor Cyan
+
+Start-Sleep -Seconds 5
 
 
 ####################################################################################################
@@ -507,12 +691,12 @@ Start-Sleep -Seconds 5
 # w32tm /resync /rediscover
 #   /resync: Synchronizes the computer clock with the time source, and then checks the time source for accuracy.
 #   /rediscover: Redetects the network configuration and rediscovers network sources, then resynchronizes.
-#       Redetect Network Configuration: The Windows Time service will check the current network settings and 
+#       Redetect Network Configuration: The Windows Time service will check the current network settings and
 #           configurations.
-#       Rediscover Network Sources: It will search for available NTP servers or other time sources based on the updated 
+#       Rediscover Network Sources: It will search for available NTP servers or other time sources based on the updated
 #           network configuration.
-#       This is particularly useful if there have been changes in the network environment, such as new NTP servers being 
-#           added, changes in network topology, or updates to DNS settings.
+#       This is particularly useful if there have been changes in the network environment, such as new NTP servers
+#           being added, changes in network topology, or updates to DNS settings.
 Write-Host "`nResynchronizing System clock" -ForegroundColor Green
 
 $Cmd_W32TM_ResyncRediscover = "w32tm /resync /rediscover"
@@ -527,9 +711,10 @@ Start-Sleep -Seconds 5
 ####################################################################################################
 # Create a strip chart to display the time offset
 # Display the time offset between the local computer and the selected NTP peer servers
-# /stripchart: Displays a strip chart of the offset between the local computer and the target computer.
-# /period: Specifies the time interval between samples in seconds.
-# /samples: Specifies the number of samples to collect.
+# w32tm /stripchart /computer:$StripChartServer /period:1 /samples:5
+#   /stripchart: Displays a strip chart of the offset between the local computer and the target computer.
+#       /period: Specifies the time interval between samples in seconds.
+#       /samples: Specifies the number of samples to collect.
 Write-Host "`nCreating Strip Chart" -ForegroundColor Green
 
 $Cmd_W32TM_StripChart = "w32tm /stripchart /computer:$StripChartServer /period:1 /samples:5"
@@ -539,7 +724,9 @@ Write-Host "`t$Cmd_W32TM_StripChart" -ForegroundColor Cyan
     Write-Host "`t$_" -ForegroundColor Cyan
 }
 
-# Capture current configuration and status
+
+####################################################################################################
+# Capture current configuration and status after applying configurations
 Write-Host "`nReading Windows Time Service's status after applying configurations" -ForegroundColor Green
 Write-Host "`t$Cmd_W32TM_Config" -ForegroundColor Cyan
 $W32TM_Config_After = Invoke-Expression $Cmd_W32TM_Config
@@ -550,12 +737,16 @@ $W32TM_Peers_After = Invoke-Expression $Cmd_W32TM_Peers
 Write-Host "`t$Cmd_W32TM_TZ" -ForegroundColor Cyan
 $W32TM_TZ_After = Invoke-Expression $Cmd_W32TM_TZ
 
+
+####################################################################################################
 # List peers after applying configurations
 Write-Host "`nNTP Peers after applying configurations" -ForegroundColor Green
 $W32TM_Peers_After -split "`n" | ForEach-Object {
     Write-Host "`t$_" -ForegroundColor Cyan
 }
 
+
+####################################################################################################
 # List timezone after applying configurations
 Write-Host "`nTimezone after applying configurations" -ForegroundColor Green
 $W32TM_TZ_After -split "`n" | ForEach-Object {
@@ -621,9 +812,12 @@ $W32TM_Status_BeforeAndAfter | Format-Table -Wrap
 
 
 ####################################################################################################
-# Finishing touches
+# Finishing touches, completing the logging
 Write-Host "`nNTP Configuration Complete!`n" -ForegroundColor Green
-Write-Host "Log file: $ScriptLogFile" -ForegroundColor Gray
+
+if(!$NoLoggingToFile){
+    Write-Host "Log file: $ScriptLogFile" -ForegroundColor Gray
+}
 
 if($Unattended){
     Write-Host "`nUnattended mode: Exiting script. Bye!" -ForegroundColor Gray
@@ -636,4 +830,7 @@ if($Unattended){
 }
 
 Write-Host ""
-Stop-Transcript | Out-Null
+
+if(!$NoLoggingToFile){
+    Stop-Transcript | Out-Null
+}
